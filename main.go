@@ -18,6 +18,8 @@ var (
 	env       map[string]string
 	token     *string
 	testFlags *string
+
+	buf bytes.Buffer
 )
 
 func init() {
@@ -117,6 +119,9 @@ func getProfiles() []*cover.Profile {
 	cmd := exec.Command("go", "list", "./...")
 	output, err := cmd.Output()
 	if err != nil {
+		if e, ok := err.(*exec.ExitError); ok {
+			panic(fmt.Sprintf("%v: %s", e, string(e.Stderr)))
+		}
 		panic(err)
 	}
 
@@ -152,10 +157,13 @@ func getPackageProfiles(pkg string) []*cover.Profile {
 
 	cmd := exec.Command("go", args...)
 	cmd.Stdout = os.Stdout
+	cmd.Stderr = &buf
+
+	buf.Reset()
 
 	err = cmd.Run()
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("%v: %s", err, buf.String()))
 	}
 
 	ps, err := cover.ParseProfiles(f.Name())
