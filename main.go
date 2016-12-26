@@ -115,25 +115,25 @@ func main() {
 
 func getProfiles() []*cover.Profile {
 	cmd := exec.Command("go", "list", "./...")
-	output, err := cmd.CombinedOutput()
+	output, err := cmd.Output()
 	if err != nil {
 		panic(err)
 	}
 
 	pkgs := bytes.Split(output, []byte{'\n'})
 
-	var rets []*cover.Profile
+	var tmp [][]*cover.Profile
 
 	for _, pkg := range pkgs {
 		pkg = bytes.TrimSpace(pkg)
 		if len(pkg) != 0 && !bytes.Contains(pkg, []byte("/vendor/")) {
 			if ps := getPackageProfiles(string(pkg)); len(ps) != 0 {
-				rets = append(rets, ps...)
+				tmp = append(tmp, ps)
 			}
 		}
 	}
 
-	return rets
+	return mergeProfs(tmp)
 }
 
 func getPackageProfiles(pkg string) []*cover.Profile {
@@ -145,14 +145,17 @@ func getPackageProfiles(pkg string) []*cover.Profile {
 
 	defer os.Remove(f.Name())
 
-	args := []string{"test", pkg, "-cover", "-coverprofile", f.Name()}
+	args := []string{"test", pkg, "-cover", "-coverpkg", "./...", "-coverprofile", f.Name()}
 	if testFlags != nil {
 		args = append(args, strings.Fields(*testFlags)...)
 	}
 
 	cmd := exec.Command("go", args...)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		panic(fmt.Sprintf("%v: %v", err, output))
+	cmd.Stdout = os.Stdout
+
+	err = cmd.Run()
+	if err != nil {
+		panic(err)
 	}
 
 	ps, err := cover.ParseProfiles(f.Name())

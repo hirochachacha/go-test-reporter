@@ -5,7 +5,6 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -24,7 +23,10 @@ type FileCoverage struct {
 }
 
 func fileCoverage(p *cover.Profile) *FileCoverage {
-	path := findPath(p.FileName)
+	path, err := findFile(p.FileName)
+	if err != nil {
+		panic(err)
+	}
 
 	body, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -59,7 +61,7 @@ func fileCoverage(p *cover.Profile) *FileCoverage {
 	}
 
 	for _, count := range coverage {
-		if count == nil {
+		if count == nil || count.(int) == 0 {
 			l.Missed++
 		} else {
 			l.Covered++
@@ -95,22 +97,4 @@ func fileCoverage(p *cover.Profile) *FileCoverage {
 		CoveredStrength: strength,
 		CoveredPercent:  percent,
 	}
-}
-
-func findPath(pkgpath string) string {
-	path := filepath.Join(env["GOROOT"], "src", pkgpath)
-	_, err := os.Stat(path)
-	if !os.IsNotExist(err) {
-		return path
-	}
-
-	for _, gopath := range filepath.SplitList(env["GOPATH"]) {
-		path := filepath.Join(gopath, "src", pkgpath)
-		_, err := os.Stat(path)
-		if !os.IsNotExist(err) {
-			return path
-		}
-	}
-
-	panic(fmt.Sprintf("cannot find path: %s", pkgpath))
 }
