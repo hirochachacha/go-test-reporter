@@ -16,32 +16,23 @@ func git() *Git {
 	git := new(Git)
 
 	cmd := exec.Command("git", "log", "-1", "--pretty=format:%H")
-	head, err := cmd.Output()
+	head, err := cmd.CombinedOutput()
 	if err != nil {
-		if e, ok := err.(*exec.ExitError); ok {
-			panic(fmt.Sprintf("%v: %s", e, string(e.Stderr)))
-		}
-		panic(err)
+		panic(fmt.Sprintf("%v: %v", err, string(head)))
 	}
 	git.Head = string(bytes.TrimSpace(head))
 
 	cmd = exec.Command("git", "log", "-1", "--pretty=format:%ct")
 	ct, err := cmd.Output()
 	if err != nil {
-		if e, ok := err.(*exec.ExitError); ok {
-			panic(fmt.Sprintf("%v: %s", e, string(e.Stderr)))
-		}
-		panic(err)
+		panic(fmt.Sprintf("%v: %v", err, string(ct)))
 	}
 	git.CommittedAt = string(bytes.TrimSpace(ct))
 
 	cmd = exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD")
-	br, err := cmd.Output()
+	br, err := cmd.CombinedOutput()
 	if err != nil {
-		if e, ok := err.(*exec.ExitError); ok {
-			panic(fmt.Sprintf("%v: %s", e, string(e.Stderr)))
-		}
-		panic(err)
+		panic(fmt.Sprintf("%v: %v", err, string(br)))
 	}
 	git.Branch = string(bytes.TrimSpace(br))
 

@@ -117,12 +117,9 @@ func main() {
 
 func getProfiles() []*cover.Profile {
 	cmd := exec.Command("go", "list", "./...")
-	output, err := cmd.Output()
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		if e, ok := err.(*exec.ExitError); ok {
-			panic(fmt.Sprintf("%v: %s", e, string(e.Stderr)))
-		}
-		panic(err)
+		panic(fmt.Sprintf("%v: %v", err, string(output)))
 	}
 
 	pkgs := bytes.Split(output, []byte{'\n'})
