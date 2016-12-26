@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -46,11 +47,11 @@ func main() {
 
 	var profile string
 	var runAt int64
+	var ps []*cover.Profile
 
 	if len(args) == 0 {
-		profile = getProfile()
+		ps = getProfiles()
 		runAt = time.Now().Unix()
-		defer os.Remove(profile)
 	} else {
 		profile = args[0]
 		st, err := os.Stat(profile)
@@ -58,15 +59,14 @@ func main() {
 			panic(err)
 		}
 		runAt = st.ModTime().Unix()
-	}
-
-	ps, err := cover.ParseProfiles(profile)
-	if err != nil {
-		panic(err)
+		ps, err = cover.ParseProfiles(profile)
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	if len(ps) == 0 {
-		panic("empty profiles")
+		return
 	}
 
 	l := new(LineCounts)
@@ -113,24 +113,54 @@ func main() {
 	api.Post()
 }
 
-func getProfile() string {
+func getProfiles() []*cover.Profile {
+	cmd := exec.Command("go", "list", "./...")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		panic(err)
+	}
+
+	pkgs := bytes.Split(output, []byte{'\n'})
+
+	var rets []*cover.Profile
+
+	for _, pkg := range pkgs {
+		pkg = bytes.TrimSpace(pkg)
+		if len(pkg) != 0 && !bytes.Contains(pkg, []byte("/vendor/")) {
+			if ps := getPackageProfiles(string(pkg)); len(ps) != 0 {
+				rets = append(rets, ps...)
+			}
+		}
+	}
+
+	return rets
+}
+
+func getPackageProfiles(pkg string) []*cover.Profile {
 	f, err := ioutil.TempFile("", "go-test-reporter")
 	if err != nil {
 		panic(err)
 	}
-	defer f.Close()
+	f.Close()
 
-	args := []string{"test", "-cover", "-coverprofile", f.Name()}
+	defer os.Remove(f.Name())
+
+	args := []string{"test", pkg, "-cover", "-coverprofile", f.Name()}
 	if testFlags != nil {
 		args = append(args, strings.Fields(*testFlags)...)
 	}
 
 	cmd := exec.Command("go", args...)
-	if err := cmd.Run(); err != nil {
+	if output, err := cmd.CombinedOutput(); err != nil {
+		panic(fmt.Sprintf("%v: %v", err, output))
+	}
+
+	ps, err := cover.ParseProfiles(f.Name())
+	if err != nil {
 		panic(err)
 	}
 
-	return f.Name()
+	return ps
 }
 
 func round(f float64) float64 {

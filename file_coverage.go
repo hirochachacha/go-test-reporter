@@ -23,24 +23,6 @@ type FileCoverage struct {
 	LineCounts      *LineCounts `json:"line_counts"`
 }
 
-func findPath(pkgpath string) string {
-	path := filepath.Join(env["GOROOT"], "src", pkgpath)
-	_, err := os.Stat(path)
-	if !os.IsNotExist(err) {
-		return path
-	}
-
-	for _, gopath := range filepath.SplitList(env["GOPATH"]) {
-		path := filepath.Join(gopath, "src", pkgpath)
-		_, err := os.Stat(path)
-		if !os.IsNotExist(err) {
-			return path
-		}
-	}
-
-	panic(fmt.Sprintf("cannot find path: %s", pkgpath))
-}
-
 func fileCoverage(p *cover.Profile) *FileCoverage {
 	path := findPath(p.FileName)
 
@@ -113,4 +95,22 @@ func fileCoverage(p *cover.Profile) *FileCoverage {
 		CoveredStrength: strength,
 		CoveredPercent:  percent,
 	}
+}
+
+func findPath(pkgpath string) string {
+	path := filepath.Join(env["GOROOT"], "src", pkgpath)
+	_, err := os.Stat(path)
+	if !os.IsNotExist(err) {
+		return path
+	}
+
+	for _, gopath := range filepath.SplitList(env["GOPATH"]) {
+		path := filepath.Join(gopath, "src", pkgpath)
+		_, err := os.Stat(path)
+		if !os.IsNotExist(err) {
+			return path
+		}
+	}
+
+	panic(fmt.Sprintf("cannot find path: %s", pkgpath))
 }
