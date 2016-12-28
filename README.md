@@ -11,7 +11,7 @@ inspired by [goveralls](https://github.com/mattn/goveralls)
 Installation
 ------------
 
-go get github.com/hirochachacha/go-test-reporter
+`go get github.com/hirochachacha/go-test-reporter`
 
 Usage
 -----
@@ -25,6 +25,6 @@ usage: go-test-reporter [coverprofile]
     	Code Climate repo token
 ```
 
-If coverprofile is not supplied, it invoke `go test -cover -coverproifile=tmpfile $testflags`
+If coverprofile is not supplied, it invoke `go test pkg -cover -coverpkg=./... -coverproifile=tmpfile $testflags`
 
 If token is not supplied, it read the environmental variable $CODECLIMATE_REPO_TOKEN
