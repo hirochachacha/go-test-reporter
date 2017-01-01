@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math"
 	"os"
@@ -124,21 +125,31 @@ func getProfiles() []*cover.Profile {
 
 	pkgs := bytes.Split(output, []byte{'\n'})
 
+	var fail bool
+
 	var tmp [][]*cover.Profile
 
 	for _, pkg := range pkgs {
 		pkg = bytes.TrimSpace(pkg)
 		if len(pkg) != 0 && !bytes.Contains(pkg, []byte("/vendor/")) {
-			if ps := getPackageProfiles(string(pkg)); len(ps) != 0 {
-				tmp = append(tmp, ps)
+			if ps, ok := getPackageProfiles(string(pkg)); ok {
+				if len(ps) != 0 {
+					tmp = append(tmp, ps)
+				}
+			} else {
+				fail = true
 			}
 		}
+	}
+
+	if fail {
+		return nil
 	}
 
 	return mergeProfs(tmp)
 }
 
-func getPackageProfiles(pkg string) []*cover.Profile {
+func getPackageProfiles(pkg string) ([]*cover.Profile, bool) {
 	f, err := ioutil.TempFile("", "go-test-reporter")
 	if err != nil {
 		panic(err)
@@ -153,14 +164,34 @@ func getPackageProfiles(pkg string) []*cover.Profile {
 	}
 
 	cmd := exec.Command("go", args...)
-	cmd.Stdout = os.Stdout
+
+	cmd.Stdout = &buf
 	cmd.Stderr = &buf
 
 	buf.Reset()
 
 	err = cmd.Run()
+
+	// XXX go command doesn't provide warning message suppression.
+	// Therefore, we need to filter it manually.
+	for {
+		line, err := buf.ReadString('\n')
+
+		// don't show annoying messages
+		if !strings.HasPrefix(line, "warning: no packages being tested depend on ") {
+			fmt.Print(line)
+		}
+
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			panic(err)
+		}
+	}
+
 	if err != nil {
-		panic(fmt.Sprintf("%v: %s", err, buf.String()))
+		return nil, false
 	}
 
 	ps, err := cover.ParseProfiles(f.Name())
@@ -168,7 +199,7 @@ func getPackageProfiles(pkg string) []*cover.Profile {
 		panic(err)
 	}
 
-	return ps
+	return ps, true
 }
 
 func round(f float64) float64 {
