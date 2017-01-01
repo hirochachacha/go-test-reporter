@@ -22,7 +22,7 @@ type API struct {
 	CIService       interface{}     `json:"ci_service"`
 }
 
-func (api *API) Post() {
+func (api *API) Post() bool {
 	api.validate()
 
 	host := env["CODECLIMATE_API_HOST"]
@@ -54,9 +54,13 @@ func (api *API) Post() {
 
 	if res.StatusCode == 200 {
 		fmt.Fprintf(os.Stdout, "%s: %s", res.Status, string(b))
-	} else {
-		fmt.Fprintf(os.Stderr, "%s: %s", res.Status, string(b))
+
+		return true
 	}
+
+	fmt.Fprintf(os.Stderr, "%s: %s", res.Status, string(b))
+
+	return false
 }
 
 func (api *API) validate() {

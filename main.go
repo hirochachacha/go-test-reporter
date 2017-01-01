@@ -53,7 +53,11 @@ func main() {
 	var ps []*cover.Profile
 
 	if len(args) == 0 {
-		ps = getProfiles()
+		var ok bool
+		ps, ok = getProfiles()
+		if !ok {
+			os.Exit(1)
+		}
 		runAt = time.Now().Unix()
 	} else {
 		profile = args[0]
@@ -113,10 +117,14 @@ func main() {
 		Environment:     environment(),
 	}
 
-	api.Post()
+	if api.Post() {
+		os.Exit(0)
+	}
+
+	os.Exit(1)
 }
 
-func getProfiles() []*cover.Profile {
+func getProfiles() ([]*cover.Profile, bool) {
 	cmd := exec.Command("go", "list", "./...")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -143,10 +151,10 @@ func getProfiles() []*cover.Profile {
 	}
 
 	if fail {
-		return nil
+		return nil, false
 	}
 
-	return mergeProfs(tmp)
+	return mergeProfs(tmp), true
 }
 
 func getPackageProfiles(pkg string) ([]*cover.Profile, bool) {
